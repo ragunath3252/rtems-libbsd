@@ -1,7 +1,7 @@
 # Mandatory: Select your BSP and installation prefix
 TARGET = arm-rtems4.11
-BSP = realview_pbx_a9_qemu
-PREFIX = /opt/rtems-4.11
+BSP = beagleboneblack
+PREFIX = /home/ragu/build_tools/bsd_tools
 
 # Optional: Separate installation base directory
 INSTALL_BASE = $(PREFIX)/$(TARGET)/$(BSP)
