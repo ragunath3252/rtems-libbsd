@@ -129,6 +129,7 @@ LIB_C_FILES += freebsd/sys/dev/mii/brgphy.c
 LIB_C_FILES += freebsd/sys/dev/mii/micphy.c
 LIB_C_FILES += freebsd/sys/dev/mii/ukphy.c
 LIB_C_FILES += freebsd/sys/dev/mii/ukphy_subr.c
+LIB_C_FILES += freebsd/sys/dev/mii/smscphy.c
 LIB_C_FILES += freebsd/sys/dev/tsec/if_tsec.c
 LIB_C_FILES += freebsd/sys/dev/cadence/if_cgem.c
 LIB_C_FILES += freebsd/sys/dev/dwc/if_dwc.c

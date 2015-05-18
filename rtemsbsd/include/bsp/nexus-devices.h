@@ -84,6 +84,8 @@ static const rtems_bsd_device_resource cpsw0_res[] = {
 RTEMS_BSD_DEFINE_NEXUS_DEVICE(cpsw, 0, RTEMS_ARRAY_SIZE(cpsw0_res),
     &cpsw0_res[0]);
 
+SYSINIT_DRIVER_REFERENCE(smscphy, miibus);
+
 #elif defined(__GENMCF548X_BSP_H)
 
 RTEMS_BSD_DEFINE_NEXUS_DEVICE(fec, 0, 0, NULL);
