@@ -143,9 +143,11 @@ static int cpsw_ale_update_addresses(struct cpsw_softc *, int purge);
 static void cpsw_ale_dump_table(struct cpsw_softc *);
 
 /* Statistics and sysctls. */
+#ifndef __rtems__
 static void cpsw_add_sysctls(struct cpsw_softc *);
 static void cpsw_stats_collect(struct cpsw_softc *);
 static int cpsw_stats_sysctl(SYSCTL_HANDLER_ARGS);
+#endif
 
 /*
  * Arbitrary limit on number of segments in an mbuf to be transmitted.
@@ -590,7 +592,9 @@ cpsw_attach(device_t dev)
 	device_printf(dev, "CPSW SS Version %d.%d (%d)\n", (reg >> 8 & 0x7),
 		reg & 0xFF, (reg >> 11) & 0x1F);
 
+#ifndef __rtems__
 	cpsw_add_sysctls(sc);
+#endif
 
 	/* Allocate a busdma tag and DMA safe memory for mbufs. */
 	error = bus_dma_tag_create(
@@ -1039,8 +1043,10 @@ cpsw_shutdown_locked(struct cpsw_softc *sc)
 	cpsw_rx_teardown_locked(sc);
 	cpsw_tx_teardown_locked(sc);
 
+#ifndef __rtems__
 	/* Capture stats before we reset controller. */
 	cpsw_stats_collect(sc);
+#endif
 
 	cpsw_reset(sc);
 }
@@ -1759,8 +1765,10 @@ cpsw_intr_misc(void *arg)
 
 	if (stat & 16)
 		CPSW_DEBUGF(("Time sync event interrupt unimplemented"));
+#ifndef __rtems__
 	if (stat & 8)
 		cpsw_stats_collect(sc);
+#endif
 	if (stat & 4)
 		cpsw_intr_misc_host_error(sc);
 	if (stat & 2)
@@ -2059,6 +2067,7 @@ cpsw_stats_dump(struct cpsw_softc *sc)
 }
 #endif
 
+#ifndef __rtems__
 static void
 cpsw_stats_collect(struct cpsw_softc *sc)
 {
@@ -2210,4 +2219,4 @@ cpsw_add_sysctls(struct cpsw_softc *sc)
 	    CTLFLAG_RD, NULL, "Watchdog Statistics");
 	cpsw_add_watchdog_sysctls(ctx, node, sc);
 }
-
+#endif
