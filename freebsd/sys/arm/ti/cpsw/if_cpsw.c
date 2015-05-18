@@ -197,7 +197,11 @@ static driver_t cpsw_driver = {
 
 static devclass_t cpsw_devclass;
 
+#ifndef __rtems__
 DRIVER_MODULE(cpsw, simplebus, cpsw_driver, cpsw_devclass, 0, 0);
+#else
+DRIVER_MODULE(cpsw, nexus, cpsw_driver, cpsw_devclass, 0, 0);
+#endif
 DRIVER_MODULE(miibus, cpsw, miibus_driver, miibus_devclass, 0, 0);
 MODULE_DEPEND(cpsw, ether, 1, 1, 1);
 MODULE_DEPEND(cpsw, miibus, 1, 1, 1);

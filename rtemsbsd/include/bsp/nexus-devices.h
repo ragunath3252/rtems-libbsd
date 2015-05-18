@@ -52,6 +52,38 @@ static const rtems_bsd_device_resource smc0_res[] = {
 RTEMS_BSD_DEFINE_NEXUS_DEVICE(smc, 0, RTEMS_ARRAY_SIZE(smc0_res),
     &smc0_res[0]);
 
+#elif defined(LIBBSP_ARM_BEAGLE_BSP_H)
+
+static const rtems_bsd_device_resource cpsw0_res[] = {
+        {
+                .type = RTEMS_BSD_RES_MEMORY,
+                .start_request = 0,
+                .start_actual = 0x4a100000
+        }, {
+                .type = RTEMS_BSD_RES_IRQ,
+                .start_request = 0,
+                .start_actual = 0x28
+        },
+	   {
+                .type = RTEMS_BSD_RES_IRQ,
+                .start_request = 1,
+                .start_actual = 0x29
+        },
+           {
+                .type = RTEMS_BSD_RES_IRQ,
+                .start_request = 2,
+                .start_actual = 0x2a
+        },
+           {
+                .type = RTEMS_BSD_RES_IRQ,
+                .start_request = 3,
+                .start_actual = 0x2b
+        }
+};
+
+RTEMS_BSD_DEFINE_NEXUS_DEVICE(cpsw, 0, RTEMS_ARRAY_SIZE(cpsw0_res),
+    &cpsw0_res[0]);
+
 #elif defined(__GENMCF548X_BSP_H)
 
 RTEMS_BSD_DEFINE_NEXUS_DEVICE(fec, 0, 0, NULL);
