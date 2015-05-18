@@ -1,3 +1,4 @@
+#include <machine/rtems-bsd-kernel-space.h>
 /*-
  * Copyright (c) 2012 Damjan Marion <dmarion@Freebsd.org>
  * All rights reserved.
@@ -50,7 +51,11 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/endian.h>
 #include <sys/mbuf.h>
+#ifndef __rtems__
 #include <sys/lock.h>
+#else
+#include <rtems/bsd/sys/lock.h>
+#endif
 #include <sys/mutex.h>
 #include <sys/kernel.h>
 #include <sys/module.h>
@@ -79,16 +84,16 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/mii/mii.h>
 #include <dev/mii/miivar.h>
-
+#ifndef __rtems__
 #include <dev/fdt/fdt_common.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
-
+#endif
 #include "if_cpswreg.h"
 #include "if_cpswvar.h"
- 
+#ifndef __rtems__
 #include <arm/ti/ti_scm.h>
-
+#endif
 #include "miibus_if.h"
 
 /* Device probe/attach/detach. */
@@ -324,6 +329,8 @@ cpsw_debugf(const char *fmt, ...)
  */
 #define	cpsw_read_4(sc, reg)		bus_read_4(sc->res[0], reg)
 #define	cpsw_write_4(sc, reg, val)	bus_write_4(sc->res[0], reg, val)
+#define BUS_SPACE_PHYSADDR(res, offs) \
+        ((u_int)(rman_get_start(res)+(offs)))
 
 #define	cpsw_cpdma_bd_offset(i)	(CPSW_CPPI_RAM_OFFSET + ((i)*16))
 
@@ -444,13 +451,13 @@ cpsw_dump_queue(struct cpsw_softc *sc, struct cpsw_slots *q)
 static int
 cpsw_probe(device_t dev)
 {
-
+#ifndef __rtems__
 	if (!ofw_bus_status_okay(dev))
 		return (ENXIO);
 
 	if (!ofw_bus_is_compatible(dev, "ti,cpsw"))
 		return (ENXIO);
-
+#endif
 	device_set_desc(dev, "3-port Switch Ethernet Subsystem");
 	return (BUS_PROBE_DEFAULT);
 }
@@ -557,13 +564,14 @@ cpsw_attach(device_t dev)
 
 	getbinuptime(&sc->attach_uptime);
 	sc->dev = dev;
+#ifndef __rtems__
 	sc->node = ofw_bus_get_node(dev);
-
 	/* Get phy address from fdt */
 	if (fdt_get_phyaddr(sc->node, sc->dev, &phy, &phy_sc) != 0) {
 		device_printf(dev, "failed to get PHY address from FDT\n");
 		return (ENXIO);
 	}
+#endif
 	/* Initialize mutexes */
 	mtx_init(&sc->tx.lock, device_get_nameunit(dev),
 	    "cpsw TX lock", MTX_DEF);
@@ -655,14 +663,18 @@ cpsw_attach(device_t dev)
 
 	/* Get high part of MAC address from control module (mac_id0_hi) */
 	/* TODO: Get MAC ID1 as well as MAC ID0. */
+#ifndef __rtems__
 	ti_scm_reg_read_4(0x634, &reg);
+#endif
 	sc->mac_addr[0] = reg & 0xFF;
 	sc->mac_addr[1] = (reg >>  8) & 0xFF;
 	sc->mac_addr[2] = (reg >> 16) & 0xFF;
 	sc->mac_addr[3] = (reg >> 24) & 0xFF;
 
 	/* Get low part of MAC address from control module (mac_id0_lo) */
+#ifndef __rtems__
 	ti_scm_reg_read_4(0x630, &reg);
+#endif
 	sc->mac_addr[4] = reg & 0xFF;
 	sc->mac_addr[5] = (reg >>  8) & 0xFF;
 
@@ -1846,7 +1858,11 @@ cpsw_tx_watchdog(struct cpsw_softc *sc)
 		++sc->watchdog.timer;
 		if (sc->watchdog.timer > 2) {
 			sc->watchdog.timer = 0;
+#ifndef __rtems__
 			if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
+#else
+                        sc->ifp->if_oerrors++;
+#endif
 			++sc->watchdog.resets;
 			cpsw_tx_watchdog_full_reset(sc);
 		}

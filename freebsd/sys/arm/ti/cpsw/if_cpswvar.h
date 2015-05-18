@@ -66,7 +66,9 @@ struct cpsw_queue {
 
 struct cpsw_softc {
 	struct ifnet	*ifp;
+#ifndef __rtems__
 	phandle_t	node;
+#endif
 	device_t	dev;
 	struct bintime	attach_uptime; /* system uptime when attach happened. */
 	struct bintime	init_uptime; /* system uptime when init happened. */
