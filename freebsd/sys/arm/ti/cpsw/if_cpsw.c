@@ -337,6 +337,10 @@ cpsw_debugf(const char *fmt, ...)
 #define	cpsw_write_4(sc, reg, val)	bus_write_4(sc->res[0], reg, val)
 #define BUS_SPACE_PHYSADDR(res, offs) \
         ((u_int)(rman_get_start(res)+(offs)))
+#define CONTROL_MOD_BASE 0x44E10000
+#define cm_read(a)    (*(volatile uint32_t *)(a))
+#define cm_write(a,v) (*(volatile uint32_t *)(a) = (v))
+
 
 #define	cpsw_cpdma_bd_offset(i)	(CPSW_CPPI_RAM_OFFSET + ((i)*16))
 
@@ -673,6 +677,8 @@ cpsw_attach(device_t dev)
 	/* TODO: Get MAC ID1 as well as MAC ID0. */
 #ifndef __rtems__
 	ti_scm_reg_read_4(0x634, &reg);
+#else
+        reg = cm_read(CONTROL_MOD_BASE+0x634);
 #endif
 	sc->mac_addr[0] = reg & 0xFF;
 	sc->mac_addr[1] = (reg >>  8) & 0xFF;
@@ -682,6 +688,8 @@ cpsw_attach(device_t dev)
 	/* Get low part of MAC address from control module (mac_id0_lo) */
 #ifndef __rtems__
 	ti_scm_reg_read_4(0x630, &reg);
+#else
+        reg = cm_read(CONTROL_MOD_BASE+0x630);
 #endif
 	sc->mac_addr[4] = reg & 0xFF;
 	sc->mac_addr[5] = (reg >>  8) & 0xFF;
@@ -695,7 +703,7 @@ cpsw_attach(device_t dev)
 
 	/* Attach PHY(s) */
 	error = mii_attach(dev, &sc->miibus, ifp, cpsw_ifmedia_upd,
-	    cpsw_ifmedia_sts, BMSR_DEFCAPMASK, phy, MII_OFFSET_ANY, 0);
+	    cpsw_ifmedia_sts, BMSR_DEFCAPMASK,MII_PHY_ANY, MII_OFFSET_ANY, 0);
 	if (error) {
 		device_printf(dev, "attaching PHYs failed\n");
 		cpsw_detach(dev);
