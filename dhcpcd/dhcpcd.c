@@ -275,7 +275,7 @@ daemonise(void)
 		syslog(LOG_ERR, "pipe: %m");
 		return -1;
 	}
-	syslog(LOG_DEBUG, "forking to background");
+	syslog(LOG_ERR, "forking to background");
 	switch (pid = fork()) {
 	case -1:
 		syslog(LOG_ERR, "fork: %m");
@@ -489,7 +489,7 @@ select_profile(struct interface *ifp, const char *profile)
 	ret = 0;
 	ifo = read_config(cffile, ifp->name, ifp->ssid, profile);
 	if (ifo == NULL) {
-		syslog(LOG_DEBUG, "%s: no profile %s", ifp->name, profile);
+		syslog(LOG_ERR, "%s: no profile %s", ifp->name, profile);
 		ret = -1;
 		goto exit;
 	}
@@ -1265,7 +1265,7 @@ main(int argc, char **argv)
 #endif
 
 	if (options & DHCPCD_DEBUG)
-		setlogmask(LOG_UPTO(LOG_DEBUG));
+		setlogmask(LOG_UPTO(LOG_ERR));
 #ifndef MASTER_ONLY
 	if (options & DHCPCD_QUIET) {
 		i = open(_PATH_DEVNULL, O_RDWR);
@@ -1319,7 +1319,7 @@ main(int argc, char **argv)
 			    "sending commands to master dhcpcd process");
 			i = control_send(argc, argv);
 			if (i > 0) {
-				syslog(LOG_DEBUG, "send OK");
+				syslog(LOG_ERR, "send OK");
 				exit(EXIT_SUCCESS);
 			} else {
 				syslog(LOG_ERR, "failed to send commands");

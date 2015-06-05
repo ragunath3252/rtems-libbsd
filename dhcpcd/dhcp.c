@@ -574,7 +574,7 @@ get_option_routes(struct interface *ifp, const struct dhcp_message *dhcp)
 		routes = decode_rfc3442_rt(len, p);
 		if (routes) {
 			if (!(ifo->options & DHCPCD_CSR_WARNED)) {
-				syslog(LOG_DEBUG,
+				syslog(LOG_ERR,
 				    "%s: using %sClassless Static Routes",
 				    ifp->name, csr);
 				ifo->options |= DHCPCD_CSR_WARNED;
@@ -979,7 +979,7 @@ write_lease(const struct interface *ifp, const struct dhcp_message *dhcp)
 		return 0;
 	}
 
-	syslog(LOG_DEBUG, "%s: writing lease `%s'",
+	syslog(LOG_ERR, "%s: writing lease `%s'",
 	    ifp->name, state->leasefile);
 
 	fd = open(state->leasefile, O_WRONLY | O_CREAT | O_TRUNC, 0644);
@@ -1022,7 +1022,7 @@ read_lease(struct interface *ifp)
 			    ifp->name, state->leasefile);
 		return NULL;
 	}
-	syslog(LOG_DEBUG, "%s: reading lease `%s'",
+	syslog(LOG_ERR, "%s: reading lease `%s'",
 	    ifp->name, state->leasefile);
 	dhcp = calloc(1, sizeof(*dhcp));
 	if (dhcp == NULL) {
@@ -1046,12 +1046,12 @@ read_lease(struct interface *ifp)
 		    (uint8_t *)dhcp, sizeof(*dhcp), 4, type,
 		    auth, auth_len) == NULL)
 		{
-			syslog(LOG_DEBUG, "%s: dhcp_auth_validate: %m",
+			syslog(LOG_ERR, "%s: dhcp_auth_validate: %m",
 			    ifp->name);
 			free(dhcp);
 			return NULL;
 		}
-		syslog(LOG_DEBUG, "%s: validated using 0x%08" PRIu32,
+		syslog(LOG_ERR, "%s: validated using 0x%08" PRIu32,
 		    ifp->name, state->auth.token->secretid);
 	}
 
@@ -1489,7 +1489,7 @@ send_message(struct interface *iface, int type,
 	struct timeval tv;
 
 	if (!callback)
-		syslog(LOG_DEBUG, "%s: sending %s with xid 0x%x",
+		syslog(LOG_ERR, "%s: sending %s with xid 0x%x",
 		    iface->name, get_dhcp_op(type), state->xid);
 	else {
 		if (state->interval == 0)
@@ -1502,7 +1502,7 @@ send_message(struct interface *iface, int type,
 		tv.tv_sec = state->interval + DHCP_RAND_MIN;
 		tv.tv_usec = arc4random() % (DHCP_RAND_MAX_U - DHCP_RAND_MIN_U);
 		timernorm(&tv);
-		syslog(LOG_DEBUG,
+		syslog(LOG_ERR,
 		    "%s: sending %s (xid 0x%x), next in %0.1f seconds",
 		    iface->name, get_dhcp_op(type), state->xid,
 		    timeval_to_double(&tv));
@@ -1681,9 +1681,9 @@ dhcp_renew(void *arg)
 	struct dhcp_state *state = D_STATE(ifp);
 	struct dhcp_lease *lease = &state->lease;
 
-	syslog(LOG_DEBUG, "%s: renewing lease of %s",
+	syslog(LOG_ERR, "%s: renewing lease of %s",
 	    ifp->name, inet_ntoa(lease->addr));
-	syslog(LOG_DEBUG, "%s: rebind in %"PRIu32" seconds,"
+	syslog(LOG_ERR, "%s: rebind in %"PRIu32" seconds,"
 	    " expire in %"PRIu32" seconds",
 	    ifp->name, lease->rebindtime - lease->renewaltime,
 	    lease->leasetime - lease->renewaltime);
@@ -1701,7 +1701,7 @@ dhcp_rebind(void *arg)
 
 	syslog(LOG_WARNING, "%s: failed to renew DHCP, rebinding",
 	    ifp->name);
-	syslog(LOG_DEBUG, "%s: expire in %"PRIu32" seconds",
+	syslog(LOG_ERR, "%s: expire in %"PRIu32" seconds",
 	    ifp->name, lease->leasetime - lease->rebindtime);
 	state->state = DHS_REBIND;
 	eloop_timeout_delete(send_renew, ifp);
@@ -1787,7 +1787,7 @@ dhcp_bind(void *arg)
 				    iface->name, lease->renewaltime);
 			}
 			syslog(lease->addr.s_addr == state->addr.s_addr ?
-			    LOG_DEBUG : LOG_INFO,
+			    LOG_ERR : LOG_INFO,
 			    "%s: leased %s for %"PRIu32" seconds", iface->name,
 			    inet_ntoa(lease->addr), lease->leasetime);
 		}
@@ -1815,7 +1815,7 @@ dhcp_bind(void *arg)
 		eloop_timeout_add_sec(lease->renewaltime, dhcp_renew, iface);
 		eloop_timeout_add_sec(lease->rebindtime, dhcp_rebind, iface);
 		eloop_timeout_add_sec(lease->leasetime, dhcp_expire, iface);
-		syslog(LOG_DEBUG,
+		syslog(LOG_ERR,
 		    "%s: renew in %"PRIu32" seconds, rebind in %"PRIu32
 		    " seconds",
 		    iface->name, lease->renewaltime, lease->rebindtime);
@@ -2136,13 +2136,13 @@ dhcp_handledhcp(struct interface *iface, struct dhcp_message **dhcpp,
 		    (uint8_t *)*dhcpp, sizeof(**dhcpp), 4, type,
 		    auth, auth_len) == NULL)
 		{
-			syslog(LOG_DEBUG, "%s: dhcp_auth_validate: %m",
+			syslog(LOG_ERR, "%s: dhcp_auth_validate: %m",
 			    iface->name);
 			log_dhcp(LOG_ERR, "authentication failed",
 			    iface, dhcp, from);
 			return;
 		}
-		syslog(LOG_DEBUG, "%s: validated using 0x%08" PRIu32,
+		syslog(LOG_ERR, "%s: validated using 0x%08" PRIu32,
 		    iface->name, state->auth.token->secretid);
 	} else if (ifo->auth.options & DHCPCD_AUTH_REQUIRE) {
 		log_dhcp(LOG_ERR, "missing authentiation", iface, dhcp, from);
@@ -2254,7 +2254,7 @@ dhcp_handledhcp(struct interface *iface, struct dhcp_message **dhcpp,
 		}
 
 		if (!(ifo->options & DHCPCD_INFORM))
-			log_dhcp(LOG_DEBUG, "acknowledged", iface, dhcp, from);
+			log_dhcp(LOG_ERR, "acknowledged", iface, dhcp, from);
 		else
 		    ifo->options &= ~DHCPCD_STATIC;
 	}
@@ -2422,13 +2422,13 @@ dhcp_handlepacket(void *arg)
 		}
 		memcpy(dhcp, pp, bytes);
 		if (dhcp->cookie != htonl(MAGIC_COOKIE)) {
-			syslog(LOG_DEBUG, "%s: bogus cookie from %s",
+			syslog(LOG_ERR, "%s: bogus cookie from %s",
 			    iface->name, inet_ntoa(from));
 			continue;
 		}
 		/* Ensure it's the right transaction */
 		if (state->xid != ntohl(dhcp->xid)) {
-			syslog(LOG_DEBUG,
+			syslog(LOG_ERR,
 			    "%s: wrong xid 0x%x (expecting 0x%x) from %s",
 			    iface->name, ntohl(dhcp->xid), state->xid,
 			    inet_ntoa(from));
@@ -2438,7 +2438,7 @@ dhcp_handlepacket(void *arg)
 		if (iface->hwlen <= sizeof(dhcp->chaddr) &&
 		    memcmp(dhcp->chaddr, iface->hwaddr, iface->hwlen))
 		{
-			syslog(LOG_DEBUG, "%s: xid 0x%x is not for hwaddr %s",
+			syslog(LOG_ERR, "%s: xid 0x%x is not for hwaddr %s",
 			    iface->name, ntohl(dhcp->xid),
 			    hwaddr_ntoa(dhcp->chaddr, sizeof(dhcp->chaddr)));
 			continue;
@@ -2612,10 +2612,10 @@ dhcp_init(struct interface *ifp)
 		return 0;
 
 	if (ifo->options & DHCPCD_CLIENTID)
-		syslog(LOG_DEBUG, "%s: using ClientID %s", ifp->name,
+		syslog(LOG_ERR, "%s: using ClientID %s", ifp->name,
 		    hwaddr_ntoa(state->clientid + 1, state->clientid[0]));
 	else if (ifp->hwlen)
-		syslog(LOG_DEBUG, "%s: using hwaddr %s", ifp->name,
+		syslog(LOG_ERR, "%s: using hwaddr %s", ifp->name,
 		    hwaddr_ntoa(ifp->hwaddr, ifp->hwlen));
 	return 0;
 
@@ -2695,7 +2695,7 @@ dhcp_start(struct interface *ifp)
 			if ((time_t)state->lease.leasetime <
 			    now.tv_sec - st.st_mtime)
 			{
-				syslog(LOG_DEBUG,
+				syslog(LOG_ERR,
 				    "%s: discarding expired lease",
 				    ifp->name);
 				free(state->offer);
