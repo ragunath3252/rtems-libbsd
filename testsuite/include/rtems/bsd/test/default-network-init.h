@@ -161,6 +161,8 @@ default_network_dhcpcd_task(rtems_task_argument arg)
 	int exit_code;
 	char *dhcpcd[] = {
 		"dhcpcd",
+		"-H",
+		"-L",
 		NULL
 	};
 
@@ -332,7 +334,8 @@ SYSINIT_NEED_NET_IF_VLAN;
   &rtems_shell_PING_Command, \
   &rtems_shell_ROUTE_Command, \
   &rtems_shell_NETSTAT_Command, \
-  &rtems_shell_IFCONFIG_Command
+  &rtems_shell_IFCONFIG_Command, \
+  &rtems_shell_DHCPCD_Command
 
 #define CONFIGURE_SHELL_COMMAND_CPUUSE
 #define CONFIGURE_SHELL_COMMAND_PERIODUSE
