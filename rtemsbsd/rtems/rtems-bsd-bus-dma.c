@@ -192,6 +192,20 @@ bus_dma_tag_destroy(bus_dma_tag_t dmat)
 	return (0);
 }
 
+int
+bus_dmamap_nocache_create(bus_dma_tag_t dmat, int flags, bus_dmamap_t *mapp)
+{
+	*mapp = rtems_cache_coherent_allocate(sizeof(**mapp),0,0);
+        if (*mapp == NULL) {
+                return ENOMEM;
+        }
+
+        dmat->map_count++;
+
+        return (0);
+}
+
+
 /*
  * Allocate a handle for mapping from kva/uva/physical
  * address space into bus device space.
