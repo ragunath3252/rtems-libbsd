@@ -472,6 +472,15 @@ cpsw_probe(device_t dev)
 	return (BUS_PROBE_DEFAULT);
 }
 
+static void
+cpsw_getaddr(void *arg, bus_dma_segment_t *segs, int nsegs, int error)
+{
+
+        if (nsegs != 1 || error != 0)
+                return;
+        *(bus_addr_t *)arg = segs[0].ds_addr;
+}
+
 
 static void
 cpsw_init_slots(struct cpsw_softc *sc)
@@ -480,6 +489,19 @@ cpsw_init_slots(struct cpsw_softc *sc)
 	int i;
 
 	STAILQ_INIT(&sc->avail);
+
+	bus_dmamem_alloc(sc->mbuf_dtag,
+                               (void **)&sc->_slots,
+                               BUS_DMA_NOWAIT | BUS_DMA_COHERENT,
+                               &sc->ring_dma_map);
+
+		
+	bus_dmamap_load(sc->mbuf_dtag, sc->ring_dma_map,
+                              (void *)sc->_slots,
+                              (CPSW_CPPI_RAM_SIZE / sizeof(struct cpsw_cpdma_bd))*sizeof(struct cpsw_slot),
+                              cpsw_getaddr, &sc->ring_physaddr,
+                              BUS_DMA_NOWAIT);
+
 
 	/* Put the slot descriptors onto the global avail list. */
 	for (i = 0; i < sizeof(sc->_slots) / sizeof(sc->_slots[0]); i++) {
@@ -547,10 +569,12 @@ cpsw_add_slots(struct cpsw_softc *sc, struct cpsw_queue *queue, int requested)
 		slot = STAILQ_FIRST(&sc->avail);
 		if (slot == NULL)
 			return (0);
+#ifndef __rtems__
 		if (bus_dmamap_create(sc->mbuf_dtag, 0, &slot->dmamap)) {
 			if_printf(sc->ifp, "failed to create dmamap\n");
 			return (ENOMEM);
 		}
+#endif
 		STAILQ_REMOVE_HEAD(&sc->avail, next);
 		STAILQ_INSERT_TAIL(&queue->avail, slot, next);
 		++queue->avail_queue_len;
@@ -1268,6 +1292,7 @@ cpsw_intr_rx(void *arg)
 	struct cpsw_softc *sc = arg;
 	struct mbuf *received, *next;
 
+	cpsw_ale_dump_table(sc);
 	CPSW_RX_LOCK(sc);
 	received = cpsw_rx_dequeue(sc);
 	cpsw_rx_enqueue(sc);
@@ -1304,9 +1329,12 @@ cpsw_rx_dequeue(struct cpsw_softc *sc)
 		++removed;
 		STAILQ_REMOVE_HEAD(&sc->rx.active, next);
 		STAILQ_INSERT_TAIL(&sc->rx.avail, slot, next);
-
+#ifndef __rtems__
 		bus_dmamap_sync(sc->mbuf_dtag, slot->dmamap, BUS_DMASYNC_POSTREAD);
 		bus_dmamap_unload(sc->mbuf_dtag, slot->dmamap);
+#else
+	rtems_cache_invalidate_multiple_data_lines(slot->mbuf->m_data, slot->mbuf->m_len);	
+#endif
 
 		if (bd.flags & CPDMA_BD_TDOWNCMPLT) {
 			CPSW_DEBUGF(("RX teardown in progress"));
@@ -1381,7 +1409,7 @@ cpsw_rx_enqueue(struct cpsw_softc *sc)
 			    slot->mbuf->m_pkthdr.len =
 			    slot->mbuf->m_ext.ext_size;
 		}
-
+#ifndef __rtems__
 		error = bus_dmamap_load_mbuf_sg(sc->mbuf_dtag, slot->dmamap,
 		    slot->mbuf, seg, &nsegs, BUS_DMA_NOWAIT);
 
@@ -1396,8 +1424,13 @@ cpsw_rx_enqueue(struct cpsw_softc *sc)
 			slot->mbuf = NULL;
 			break;
 		}
-
+#endif
+#ifndef __rtems__
 		bus_dmamap_sync(sc->mbuf_dtag, slot->dmamap, BUS_DMASYNC_PREREAD);
+#else
+		rtems_cache_invalidate_multiple_data_lines(slot->mbuf->m_data, slot->mbuf->m_len);
+                seg->ds_addr = mtod(slot->mbuf, bus_addr_t);
+#endif
 
 		/* Create and submit new rx descriptor*/
 		bd.next = 0;
@@ -1459,6 +1492,33 @@ cpsw_start(struct ifnet *ifp)
 	CPSW_TX_UNLOCK(sc);
 }
 
+static int
+cpsw_get_segs_for_tx(struct mbuf *m, bus_dma_segment_t segs[CPSW_TXFRAGS],
+    int *nsegs)
+{
+        int i = 0;
+
+        do {
+                if (m->m_len > 0) {
+                        segs[i].ds_addr = mtod(m, bus_addr_t);
+                        segs[i].ds_len = m->m_len;
+                        rtems_cache_flush_multiple_data_lines(m->m_data, m->m_len);
+                        ++i;
+                }
+
+                m = m->m_next;
+
+                if (m == NULL) {
+                        *nsegs = i;
+
+                        return (0);
+                }
+        } while (i < CPSW_TXFRAGS);
+
+        return (EFBIG);
+}
+
+
 static void
 cpsw_tx_enqueue(struct cpsw_softc *sc)
 {
@@ -1482,8 +1542,12 @@ cpsw_tx_enqueue(struct cpsw_softc *sc)
 			padlen = 0;
 
 		/* Create mapping in DMA memory */
+#ifndef __rtems__
 		error = bus_dmamap_load_mbuf_sg(sc->mbuf_dtag, slot->dmamap,
 		    slot->mbuf, segs, &nsegs, BUS_DMA_NOWAIT);
+#else
+		error = cpsw_get_segs_for_tx(slot->mbuf, segs, &nsegs);
+#endif
 		/* If the packet is too fragmented, try to simplify. */
 		if (error == EFBIG ||
 		    (error == 0 &&
@@ -1514,8 +1578,10 @@ cpsw_tx_enqueue(struct cpsw_softc *sc)
 			break;
 		}
 
+#ifndef __rtems__
 		bus_dmamap_sync(sc->mbuf_dtag, slot->dmamap,
 				BUS_DMASYNC_PREWRITE);
+#endif
 
 
 		CPSW_DEBUGF(("Queueing TX packet: %d segments + %d pad bytes",
@@ -1636,8 +1702,10 @@ cpsw_tx_dequeue(struct cpsw_softc *sc)
 			break; /* Hardware is still using this packet. */
 
 		CPSW_DEBUGF(("TX removing completed packet"));
+#ifndef __rtems__
 		bus_dmamap_sync(sc->mbuf_dtag, slot->dmamap, BUS_DMASYNC_POSTWRITE);
 		bus_dmamap_unload(sc->mbuf_dtag, slot->dmamap);
+#endif
 		m_freem(slot->mbuf);
 		slot->mbuf = NULL;
 

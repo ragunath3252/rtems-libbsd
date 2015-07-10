@@ -106,6 +106,8 @@ struct cpsw_softc {
 	bus_dmamap_t null_mbuf_dmamap;
 	struct mbuf *null_mbuf;
 	bus_addr_t null_mbuf_paddr;
+	bus_dmamap_t ring_dma_map;
+	bus_addr_t              ring_physaddr;
 
 	/* RX and TX buffer tracking */
 	struct cpsw_queue rx, tx;
